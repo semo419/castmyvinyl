@@ -9,15 +9,16 @@ import time
 ##########################
 
 def cast_and_monitor(
-    button, light, target=["Office Speaker"], 
-    source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"
-):
+    button, light, target="Office Speaker", 
+    source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
+    #source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"):
+
     #Illuminate status indicator
     GPIO.output(light, True)
     print("Beginning Cast...")
     
     #Open connection to chromecast device
-    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=target)
+    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
     cast = chromecasts [0]
     
     #start worker thread and wait for cast device to be ready
@@ -26,19 +27,25 @@ def cast_and_monitor(
 
     #start media
     mc = cast.media_controller
-    mc.set_volume(.5)
+    cast.set_volume(.2)
     mc.play_media(source,sourceaudiotype)
-    time.sleep(1)
+    mc.block_until_active()
     
-    print(mc.status)
+    #wait for stream start
+    time.sleep(10)
+    print(mc.status.player_state)
 
-    while GPIO.input(button)==True:
+    while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
+         #print(mc.status.player_state)
          pass
-    
+
     #End cast, close connection, and turn off light
-    mc.stop()
-    pychromecast.discovery.stop_discovery(browser)
+    print("Closing Cast Session")
     GPIO.output(light, False)
+    mc.stop()
+    time.sleep(5)
+    print(mc.status.player_state)
+    pychromecast.discovery.stop_discovery(browser)
     time.sleep(1)
 
 
@@ -57,10 +64,10 @@ def volume_knob(
 ### Define Chromecast Targets
 #########################
 
-here="Office Speaker"
-there="Bedroom speaker"
-everywhere="Upstairs Speakers"
-target_chromecasts=[here,there,everywhere]
+#Here, There, Everywhere
+target1="Office Speaker"
+target2="Office Speaker"
+target3="Office Speaker"
 
 
 ##########################
@@ -88,10 +95,18 @@ light2=24
 light3=23
 statuslight=16
 
+GPIO.output(statuslight,False)
+GPIO.output(light1,False)
+GPIO.output(light2,False)
+GPIO.output(light3,False)
+
+
 
 ##########################
 ### Continuous Loop Monitoring the 3 main buttons and beginning cast when they are pressed
 #########################
+
+#cast_and_monitor(button1,light1)
 
 i=0
 try:
@@ -100,7 +115,7 @@ try:
         if GPIO.input(button1)==False:
             GPIO.output(statuslight, False)
             try:
-                cast_and_monitor(button1,light1)
+                cast_and_monitor(button1,light1,target1)
             except:
                 print("Function cast_and_monitor failed")
             i=i+1
@@ -109,7 +124,7 @@ try:
         elif GPIO.input(button2)==False:
             GPIO.output(statuslight, False)
             try:
-                cast_and_monitor(button2,light2)
+                cast_and_monitor(button2,light2,target2)
             except:
                 print("Function cast_and_monitor failed")
             i=i+1
@@ -118,12 +133,13 @@ try:
         elif GPIO.input(button3)==False:
             GPIO.output(statuslight, False)
             try:
-                cast_and_monitor(button3,light3)
+                cast_and_monitor(button3,light3,target3)
             except:
                 print("Function cast_and_monitor failed")
             i=i+1
             print(i)
             GPIO.output(statuslight, True)
+
 except:
     print("there was an exception")
     GPIO.cleanup()

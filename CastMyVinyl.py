@@ -27,37 +27,39 @@ def cast_and_monitor(
 
     #start media
     mc = cast.media_controller
-    cast.set_volume(.5)
+    cast.set_volume(initialVolume/100)
     mc.play_media(source,sourceaudiotype)
     mc.block_until_active()
     
+    #start PWM and volume control
+    counter=initialVolume*VoltMeterScale
+    clkLastState=GPIO.input(clk)
+    
     #wait for stream start
-    time.sleep(10)
+    time.sleep(5)
     print(mc.status.player_state)
 
     while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
-         #print(mc.status.player_state)
-         pass
+        clkState = GPIO.input(clk)
+        dtState = GPIO.input(dt)
+        if clkState != clkLastState:
+            if dtState == clkState and counter < 100:
+                counter += increment
+            elif counter > 0:
+                counter -= increment
+            print(counter)
+            pwm.ChangeDutyCycle(counter*VoltMeterScale)
+        clkLastState = clkState
 
-    #End cast, close connection, and turn off light
+    #End cast, close connection, and turn off light and volume
     print("Closing Cast Session")
     GPIO.output(light, False)
+    pwm.ChangeDutyCycle(0)
     mc.stop()
     time.sleep(5)
     print(mc.status.player_state)
     pychromecast.discovery.stop_discovery(browser)
     time.sleep(1)
-
-
-##########################
-### Function to monitor and play back volume
-##########################
-
-def volume_knob(
-    button, light, target=["Living Room Speaker"], source="http://192.168.86.41:8000/rapi.mp3"
-):
-    pass
-
 
 
 ##########################
@@ -74,18 +76,6 @@ target3="Office Speaker"
 ### Setup GPIO and naming of buttons and lights
 ##########################
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
-
-GPIO.setup(16,GPIO.OUT)
-GPIO.setup(23,GPIO.OUT)
-GPIO.setup(24,GPIO.OUT)
-GPIO.setup(25,GPIO.OUT)
-
-GPIO.setup(17,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(22,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(27,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
 button1=22
 button2=27
 button3=17
@@ -95,11 +85,42 @@ light2=24
 light3=23
 statuslight=16
 
+clk=19
+dt=26
+voltmeter=21
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+GPIO.setup(voltmeter,GPIO.OUT)
+GPIO.setup(clk,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(dt,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
+
+GPIO.setup(statuslight,GPIO.OUT)
+GPIO.setup(light1,GPIO.OUT)
+GPIO.setup(light2,GPIO.OUT)
+GPIO.setup(light3,GPIO.OUT)
+
+GPIO.setup(button1,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(button2,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(button3,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
 GPIO.output(statuslight,False)
 GPIO.output(light1,False)
 GPIO.output(light2,False)
 GPIO.output(light3,False)
 
+#initialize PWM and cycle to show startup
+pwm = GPIO.PWM(voltmeter,100)
+pwm.start(100)
+time.sleep(2)
+pwm.ChangeDutyCycle(0)
+time.sleep(2)
+
+#set volume control parameters
+VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
+increment=2 #bigger increment makes the volume knob more sensitive
+initialVolume=40 #initial volume level when casting
 
 
 ##########################
@@ -118,6 +139,7 @@ try:
             except:
                 print("Function cast_and_monitor failed")
                 GPIO.output(light1, False)
+                pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
         elif GPIO.input(button2)==False:
             GPIO.output(statuslight, False)
@@ -126,6 +148,7 @@ try:
             except:
                 print("Function cast_and_monitor failed")
                 GPIO.output(light2, False)
+                pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
         elif GPIO.input(button3)==False:
             GPIO.output(statuslight, False)
@@ -134,10 +157,12 @@ try:
             except:
                 print("Function cast_and_monitor failed")
                 GPIO.output(light3, False)
+                pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
 
 except:
     print("there was an exception")
+    pwm.ChangeDutyCycle(0)
     GPIO.cleanup()
 
 GPIO.cleanup()

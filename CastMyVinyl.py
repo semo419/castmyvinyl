@@ -27,7 +27,7 @@ def cast_and_monitor(
 
     #start media
     mc = cast.media_controller
-    cast.set_volume(.2)
+    cast.set_volume(.5)
     mc.play_media(source,sourceaudiotype)
     mc.block_until_active()
     
@@ -108,18 +108,16 @@ GPIO.output(light3,False)
 
 #cast_and_monitor(button1,light1)
 
-i=0
 try:
     GPIO.output(statuslight,True)
-    while i<4:
+    while True:
         if GPIO.input(button1)==False:
             GPIO.output(statuslight, False)
             try:
                 cast_and_monitor(button1,light1,target1)
             except:
                 print("Function cast_and_monitor failed")
-            i=i+1
-            print(i)
+                GPIO.output(light1, False)
             GPIO.output(statuslight, True)
         elif GPIO.input(button2)==False:
             GPIO.output(statuslight, False)
@@ -127,8 +125,7 @@ try:
                 cast_and_monitor(button2,light2,target2)
             except:
                 print("Function cast_and_monitor failed")
-            i=i+1
-            print(i)
+                GPIO.output(light2, False)
             GPIO.output(statuslight, True)
         elif GPIO.input(button3)==False:
             GPIO.output(statuslight, False)
@@ -136,8 +133,7 @@ try:
                 cast_and_monitor(button3,light3,target3)
             except:
                 print("Function cast_and_monitor failed")
-            i=i+1
-            print(i)
+                GPIO.output(light3, False)
             GPIO.output(statuslight, True)
 
 except:

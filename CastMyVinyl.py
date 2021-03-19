@@ -101,6 +101,7 @@ def cast_and_monitor(
     print("mc.block_until_active ok")
     cast.wait()
     print("cast.wait ok")
+    print(mc.status.player_state)
     
     #start PWM and volume control
     counter=initialVolume
@@ -109,11 +110,15 @@ def cast_and_monitor(
     
     #wait for stream start
     time.sleep(5)
+    print(mc.status.player_state)
     timeout=5
     while mc.status.player_state!="PLAYING" and timeout<connectiontimeout:
         time.sleep(1)
         timeout=timeout+1
         print(timeout)
+        print(mc.status.player_state)
+
+    print(mc.status.player_state)
 
     while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
         clkState = GPIO.input(clk)

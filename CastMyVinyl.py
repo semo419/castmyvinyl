@@ -66,6 +66,7 @@ VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
 setVolumeInterval=50000 #counter to control how frequently volume change requests are sent to google
+connectiontimeout=20
 
 
 ##########################
@@ -103,8 +104,11 @@ def cast_and_monitor(
     clkLastState=GPIO.input(clk)
     
     #wait for stream start
-    time.sleep(5)
-    print(mc.status.player_state)
+    timeout=0
+    while mc.status.player_state!="PLAYING" and timeout<connectiontimeout:
+        time.sleep(1)
+        timeout=timeout+1
+        print(timeout)
 
     while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
         clkState = GPIO.input(clk)

@@ -4,62 +4,6 @@ import pychromecast
 import time
 
 
-##########################
-### Function to Cast to a chromecast target and monitor until playback stops or the button is pressed again
-##########################
-
-def cast_and_monitor(
-    button, light, target="Office Speaker", 
-    source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
-    #source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"):
-
-    #Illuminate status indicator
-    GPIO.output(light, True)
-    print("Beginning Cast...")
-    
-    #Open connection to chromecast device
-    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
-    cast = chromecasts [0]
-    
-    #start worker thread and wait for cast device to be ready
-    cast.wait()
-    print("Casting to "+cast.device.friendly_name)
-
-    #start media
-    mc = cast.media_controller
-    cast.set_volume(initialVolume/100)
-    mc.play_media(source,sourceaudiotype)
-    mc.block_until_active()
-    
-    #start PWM and volume control
-    counter=initialVolume*VoltMeterScale
-    clkLastState=GPIO.input(clk)
-    
-    #wait for stream start
-    time.sleep(5)
-    print(mc.status.player_state)
-
-    while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
-        clkState = GPIO.input(clk)
-        dtState = GPIO.input(dt)
-        if clkState != clkLastState:
-            if dtState == clkState and counter < 100:
-                counter += increment
-            elif counter > 0:
-                counter -= increment
-            print(counter)
-            pwm.ChangeDutyCycle(counter*VoltMeterScale)
-        clkLastState = clkState
-
-    #End cast, close connection, and turn off light and volume
-    print("Closing Cast Session")
-    GPIO.output(light, False)
-    pwm.ChangeDutyCycle(0)
-    mc.stop()
-    time.sleep(5)
-    print(mc.status.player_state)
-    pychromecast.discovery.stop_discovery(browser)
-    time.sleep(1)
 
 
 ##########################
@@ -121,6 +65,66 @@ time.sleep(2)
 VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
+
+
+##########################
+### Function to Cast to a chromecast target and monitor until playback stops or the button is pressed again
+##########################
+
+def cast_and_monitor(
+    button, light, target="Office Speaker", 
+    source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
+    #source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"):
+
+    #Illuminate status indicator
+    GPIO.output(light, True)
+    print("Beginning Cast...")
+    
+    #Open connection to chromecast device
+    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
+    cast = chromecasts [0]
+    
+    #start worker thread and wait for cast device to be ready
+    cast.wait()
+    print("Casting to "+cast.device.friendly_name)
+
+    #start media
+    mc = cast.media_controller
+    cast.set_volume(initialVolume/100)
+    mc.play_media(source,sourceaudiotype)
+    mc.block_until_active()
+    
+    #start PWM and volume control
+    counter=initialVolume
+    pwm.ChangeDutyCycle(counter*VoltMeterScale)
+    clkLastState=GPIO.input(clk)
+    
+    #wait for stream start
+    time.sleep(5)
+    print(mc.status.player_state)
+
+    while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
+        clkState = GPIO.input(clk)
+        dtState = GPIO.input(dt)
+        if clkState != clkLastState:
+            if dtState == clkState and counter < 100:
+                counter += increment
+            elif counter > 0:
+                counter -= increment
+            print(counter)
+            pwm.ChangeDutyCycle(counter*VoltMeterScale)
+        clkLastState = clkState
+
+    #End cast, close connection, and turn off light and volume
+    print("Closing Cast Session")
+    GPIO.output(light, False)
+    pwm.ChangeDutyCycle(0)
+    mc.stop()
+    time.sleep(5)
+    print(mc.status.player_state)
+    pychromecast.discovery.stop_discovery(browser)
+    time.sleep(1)
+
 
 
 ##########################

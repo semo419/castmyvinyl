@@ -74,8 +74,8 @@ setVolumeInterval=50000 #counter to control how frequently volume change request
 
 def cast_and_monitor(
     button, light, target="Office Speaker", 
-    source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
-    #source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"):
+    #source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
+    source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"):
 
     #Illuminate status indicator
     GPIO.output(light, True)

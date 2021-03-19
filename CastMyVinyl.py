@@ -66,7 +66,7 @@ VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
 setVolumeInterval=50000 #counter to control how frequently volume change requests are sent to google
-connectiontimeout=20
+connectiontimeout=40
 
 
 ##########################

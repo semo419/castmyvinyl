@@ -65,6 +65,7 @@ time.sleep(2)
 VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
+setVolumeInterval=50 #counter to control how frequently volume change requests are sent to google
 
 
 ##########################
@@ -78,6 +79,7 @@ def cast_and_monitor(
 
     #Illuminate status indicator
     GPIO.output(light, True)
+    setVolumeCounter=1
     print("Beginning Cast...")
     
     #Open connection to chromecast device
@@ -113,6 +115,9 @@ def cast_and_monitor(
                 counter -= increment
             print(counter)
             pwm.ChangeDutyCycle(counter*VoltMeterScale)
+        setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
+        if setVolumeCount == 0:
+            print("check")
         clkLastState = clkState
 
     #End cast, close connection, and turn off light and volume

@@ -65,7 +65,7 @@ time.sleep(2)
 VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
-setVolumeInterval=50000 #counter to control how frequently volume change requests are sent to google
+setVolumeInterval=10000 #counter to control how frequently volume change requests are sent to google
 connectiontimeout=40
 
 
@@ -132,8 +132,8 @@ def cast_and_monitor(
             cast.set_volume(counter/100)
             priorVolume=counter
         clkLastState = clkState
-        print(mc.status.player_state)
-        print(GPIO.input(button))
+        #print(mc.status.player_state)
+        #print(GPIO.input(button))
 
     #End cast, close connection, and turn off light and volume
     print("Closing Cast Session")

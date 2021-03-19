@@ -96,7 +96,11 @@ def cast_and_monitor(
     mc = cast.media_controller
     cast.set_volume(initialVolume/100)
     mc.play_media(source,sourceaudiotype)
+    print("mc.play_media ok")
     mc.block_until_active()
+    print("mc.block_until_active ok")
+    cast.wait()
+    print("cast.wait ok")
     
     #start PWM and volume control
     counter=initialVolume

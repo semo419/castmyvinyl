@@ -115,7 +115,8 @@ def cast_and_monitor(
     print(mc.status.player_state)
     print(GPIO.input(button))
 
-    while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
+    #while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
+    while GPIO.input(button)==True
         clkState = GPIO.input(clk)
         dtState = GPIO.input(dt)
         if clkState != clkLastState:
@@ -132,6 +133,7 @@ def cast_and_monitor(
             priorVolume=counter
         clkLastState = clkState
         print(mc.status.player_state)
+        print(GPIO.input(button))
 
     #End cast, close connection, and turn off light and volume
     print("Closing Cast Session")

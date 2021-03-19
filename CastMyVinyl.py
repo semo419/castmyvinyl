@@ -80,6 +80,7 @@ def cast_and_monitor(
     #Illuminate status indicator
     GPIO.output(light, True)
     setVolumeCounter=1
+    priorVolume=initialVolume
     print("Beginning Cast...")
     
     #Open connection to chromecast device
@@ -116,9 +117,10 @@ def cast_and_monitor(
             print(counter)
             pwm.ChangeDutyCycle(counter*VoltMeterScale)
         setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
-        if setVolumeCounter == 0:
-            print("check")
+        if setVolumeCounter == 0 and priorVolume/=counter:
+            print("Set Volume")
             cast.set_volume(counter/100)
+            priorVolume=counter
         clkLastState = clkState
 
     #End cast, close connection, and turn off light and volume

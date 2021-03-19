@@ -117,7 +117,7 @@ def cast_and_monitor(
             print(counter)
             pwm.ChangeDutyCycle(counter*VoltMeterScale)
         setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
-        if setVolumeCounter == 0 and priorVolume/=counter:
+        if setVolumeCounter == 0 and priorVolume!=counter:
             print("Set Volume")
             cast.set_volume(counter/100)
             priorVolume=counter

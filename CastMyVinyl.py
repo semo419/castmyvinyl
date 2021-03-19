@@ -116,7 +116,7 @@ def cast_and_monitor(
             print(counter)
             pwm.ChangeDutyCycle(counter*VoltMeterScale)
         setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
-        if setVolumeCount == 0:
+        if setVolumeCounter == 0:
             print("check")
         clkLastState = clkState
 

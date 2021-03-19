@@ -96,11 +96,7 @@ def cast_and_monitor(
     mc = cast.media_controller
     cast.set_volume(initialVolume/100)
     mc.play_media(source,sourceaudiotype)
-    print("mc.play_media ok")
     mc.block_until_active()
-    print("mc.block_until_active ok")
-    cast.wait()
-    print("cast.wait ok")
     print(mc.status.player_state)
     
     #start PWM and volume control
@@ -110,15 +106,14 @@ def cast_and_monitor(
     
     #wait for stream start
     time.sleep(5)
-    print(mc.status.player_state)
     timeout=5
     while mc.status.player_state!="PLAYING" and timeout<connectiontimeout:
         time.sleep(1)
         timeout=timeout+1
         print(timeout)
-        print(mc.status.player_state)
 
     print(mc.status.player_state)
+    print(GPIO.input(button))
 
     while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
         clkState = GPIO.input(clk)
@@ -136,6 +131,7 @@ def cast_and_monitor(
             cast.set_volume(counter/100)
             priorVolume=counter
         clkLastState = clkState
+        print(mc.status.player_state)
 
     #End cast, close connection, and turn off light and volume
     print("Closing Cast Session")

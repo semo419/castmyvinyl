@@ -11,9 +11,9 @@ import time
 #########################
 
 #Here, There, Everywhere
-target1="Office Speaker"
-target2="Office Speaker"
-target3="Office Speaker"
+target1="Downstairs Speakers"
+target2="Upstairs Speakers"
+target3="All Devices"
 
 
 ##########################

@@ -22,8 +22,8 @@ print("Volume = "+str(cast.status.volume_level))
 #print("")
 
 mc = cast.media_controller
-#mc.play_media('http://192.168.86.41:8000/rapi.mp3','audio/mp3')
-mc.play_media('http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 'video/mp4')
+mc.play_media('http://192.168.86.41:8000/rapi.mp3','audio/mp3')
+#mc.play_media('http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 'video/mp4')
 mc.block_until_active()
 print(mc.status.player_state)
 

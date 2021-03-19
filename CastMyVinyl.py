@@ -104,7 +104,8 @@ def cast_and_monitor(
     clkLastState=GPIO.input(clk)
     
     #wait for stream start
-    timeout=0
+    time.sleep(5)
+    timeout=5
     while mc.status.player_state!="PLAYING" and timeout<connectiontimeout:
         time.sleep(1)
         timeout=timeout+1

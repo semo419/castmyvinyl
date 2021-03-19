@@ -115,8 +115,8 @@ def cast_and_monitor(
     print(mc.status.player_state)
     print(GPIO.input(button))
 
-    #while mc.status.player_state=="PLAYING" and GPIO.input(button)==True:
-    while GPIO.input(button)==True:
+    while (mc.status.player_state=="PLAYING" or mc.status.player_state=="BUFFERING") and GPIO.input(button)==True:
+    #while GPIO.input(button)==True:
         clkState = GPIO.input(clk)
         dtState = GPIO.input(dt)
         if clkState != clkLastState:

@@ -118,6 +118,7 @@ def cast_and_monitor(
         setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
         if setVolumeCounter == 0:
             print("check")
+            cast.set_volume(counter/100)
         clkLastState = clkState
 
     #End cast, close connection, and turn off light and volume

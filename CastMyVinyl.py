@@ -14,7 +14,7 @@ import time
 target1="Downstairs Speakers"
 target2="Upstairs Speakers"
 target3="All Devices"
-
+audiostream="http://192.168.86.32:8000/mystream.mp3"
 
 ##########################
 ### Setup GPIO and naming of buttons and lights
@@ -76,7 +76,7 @@ connectiontimeout=10
 def cast_and_monitor(
     button, light, target="Office Speaker", 
     #source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
-    source="http://192.168.86.41:8000/rapi.mp3",sourceaudiotype="audio/mp3"):
+    source=audiostream,sourceaudiotype="audio/mp3"):
 
     #Illuminate status indicator
     GPIO.output(light, True)

@@ -1,6 +1,2 @@
-#!/bin/bash
-
-cd /
-cd home/pi/Desktop/castmyvinyl
-sudo -u pi python3 CastMyVinyl.py
-cd /
+#!/usr/bin/env bash
+python3 /home/pi/Desktop/castmyvinyl/CastMyVinyl.py > /home/pi/Desktop/castmyvinyl/CMVlog.txt

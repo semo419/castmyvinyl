@@ -82,7 +82,7 @@ def cast_and_monitor(
     GPIO.output(light, True)
     setVolumeCounter=1
     priorVolume=initialVolume
-    print("Beginning Cast...")
+    print("Attempting Cast...")
     
     #Open connection to chromecast device
     chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
@@ -101,7 +101,6 @@ def cast_and_monitor(
     
     #start PWM and volume control
     counter=initialVolume
-    pwm.ChangeDutyCycle(counter*VoltMeterScale)
     clkLastState=GPIO.input(clk)
     
     #wait for stream start
@@ -115,6 +114,8 @@ def cast_and_monitor(
     print(mc.status.player_state)
     print(GPIO.input(button))
 
+    pwm.ChangeDutyCycle(counter*VoltMeterScale)
+    
     while (mc.status.player_state=="PLAYING" or mc.status.player_state=="BUFFERING") and GPIO.input(button)==True:
     #while GPIO.input(button)==True:
         clkState = GPIO.input(clk)

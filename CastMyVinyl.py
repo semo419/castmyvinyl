@@ -2,8 +2,10 @@ import RPi.GPIO as GPIO
 import sys
 import pychromecast
 import time
+import datetime
 
-
+print(datetime.datetime.now())
+print("Beginning Execution of Cast My Vinyl")
 
 
 ##########################
@@ -65,7 +67,7 @@ time.sleep(2)
 VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
-setVolumeInterval=10000 #counter to control how frequently volume change requests are sent to google
+setVolumeInterval=100 #counter to control how frequently volume change requests are sent to google
 connectiontimeout=10
 
 
@@ -86,8 +88,9 @@ def cast_and_monitor(
     
     #Open connection to chromecast device
     chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
+    print("db 3")
     cast = chromecasts [0]
-    
+
     #start worker thread and wait for cast device to be ready
     cast.wait()
     print("Casting to "+cast.device.friendly_name)
@@ -133,6 +136,7 @@ def cast_and_monitor(
             cast.set_volume(counter/100)
             priorVolume=counter
         clkLastState = clkState
+        time.sleep(.005)
         #print(mc.status.player_state)
         #print(GPIO.input(button))
 
@@ -147,6 +151,7 @@ def cast_and_monitor(
     time.sleep(1)
 
 
+#cast_and_monitor(button1,light1,target1)
 
 ##########################
 ### Continuous Loop Monitoring the 3 main buttons and beginning cast when they are pressed
@@ -184,6 +189,7 @@ try:
                 GPIO.output(light3, False)
                 pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
+        time.sleep(.05)
 
 except:
     print("there was an exception")

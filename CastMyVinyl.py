@@ -67,9 +67,38 @@ time.sleep(2)
 VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
 initialVolume=40 #initial volume level when casting
-setVolumeInterval=100 #counter to control how frequently volume change requests are sent to google
+setVolumeInterval=300 #counter to control how frequently volume change requests are sent to google
 connectiontimeout=10
 
+##########################
+### Function to kill cast session
+##########################
+
+def kill(self, idle_only=False, force=False):
+        """
+        Kills current Chromecast session.
+
+        :param idle_only: If set, session is only killed if the active Chromecast app
+                          is idle. Use to avoid killing an active streaming session
+                          when catt fails with certain invalid actions (such as trying
+                          to cast an empty playlist).
+        :type idle_only: bool
+        :param force: If set, a dummy chromecast app is launched before killing the session.
+                      This is a workaround for some devices that do not respond to this
+                      command under certain circumstances.
+        :type force: bool
+        """
+
+        if idle_only and not self._is_idle:
+            return
+        # The Google cloud app which is launched by the workaround is functionally
+        # identical to the Default Media Receiver.
+        if force:
+            listener = CastStatusListener(CLOUD_APP_ID)
+            self._cast.register_status_listener(listener)
+            self._cast.start_app(CLOUD_APP_ID)
+            listener.app_ready.wait()
+        self._cast.quit_app() 
 
 ##########################
 ### Function to Cast to a chromecast target and monitor until playback stops or the button is pressed again
@@ -136,7 +165,7 @@ def cast_and_monitor(
             cast.set_volume(counter/100)
             priorVolume=counter
         clkLastState = clkState
-        time.sleep(.005)
+        time.sleep(.002)
         #print(mc.status.player_state)
         #print(GPIO.input(button))
 
@@ -148,6 +177,7 @@ def cast_and_monitor(
     time.sleep(5)
     print(mc.status.player_state)
     pychromecast.discovery.stop_discovery(browser)
+    kill(cast)
     time.sleep(1)
 
 

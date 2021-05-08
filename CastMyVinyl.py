@@ -70,35 +70,6 @@ initialVolume=40 #initial volume level when casting
 setVolumeInterval=300 #counter to control how frequently volume change requests are sent to google
 connectiontimeout=10
 
-##########################
-### Function to kill cast session
-##########################
-
-def kill(self, idle_only=False, force=False):
-        """
-        Kills current Chromecast session.
-
-        :param idle_only: If set, session is only killed if the active Chromecast app
-                          is idle. Use to avoid killing an active streaming session
-                          when catt fails with certain invalid actions (such as trying
-                          to cast an empty playlist).
-        :type idle_only: bool
-        :param force: If set, a dummy chromecast app is launched before killing the session.
-                      This is a workaround for some devices that do not respond to this
-                      command under certain circumstances.
-        :type force: bool
-        """
-
-        if idle_only and not self._is_idle:
-            return
-        # The Google cloud app which is launched by the workaround is functionally
-        # identical to the Default Media Receiver.
-        if force:
-            listener = CastStatusListener(CLOUD_APP_ID)
-            self._cast.register_status_listener(listener)
-            self._cast.start_app(CLOUD_APP_ID)
-            listener.app_ready.wait()
-        self._cast.quit_app() 
 
 ##########################
 ### Function to Cast to a chromecast target and monitor until playback stops or the button is pressed again
@@ -117,7 +88,6 @@ def cast_and_monitor(
     
     #Open connection to chromecast device
     chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
-    print("db 3")
     cast = chromecasts [0]
 
     #start worker thread and wait for cast device to be ready
@@ -157,11 +127,11 @@ def cast_and_monitor(
                 counter += increment
             elif counter > 0:
                 counter -= increment
-            print(counter)
+            #print(counter)
             pwm.ChangeDutyCycle(counter*VoltMeterScale)
         setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
         if setVolumeCounter == 0 and priorVolume!=counter:
-            print("Set Volume")
+            #print("Set Volume")
             cast.set_volume(counter/100)
             priorVolume=counter
         clkLastState = clkState
@@ -176,8 +146,8 @@ def cast_and_monitor(
     mc.stop()
     time.sleep(5)
     print(mc.status.player_state)
+    #cast.disconnect()
     pychromecast.discovery.stop_discovery(browser)
-    kill(cast)
     time.sleep(1)
 
 

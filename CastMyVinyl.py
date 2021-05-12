@@ -13,22 +13,25 @@ print("Beginning Execution of Cast My Vinyl")
 #########################
 
 #Here, There, Everywhere
-target1="Downstairs Speakers"
-target2="Upstairs Speakers"
-target3="All Devices"
+targets=["Downstairs Speakers","Upstairs Speakers","All Devices"]
+#targets[0]="Downstairs Speakers"
+#targets[1]="Upstairs Speakers"
+#targets[2]="All Devices"
 audiostream="http://192.168.86.32:8000/mystream.mp3"
 
 ##########################
 ### Setup GPIO and naming of buttons and lights
 ##########################
 
-button1=22
-button2=27
-button3=17
+buttons=[22,27,17]
+#buttons[0]=22
+#buttons[1]=27
+#buttons[2]=17
 
-light1=25
-light2=24
-light3=23
+lights=[25,24,23]
+#lights[0]=25
+#lights[1]=24
+#lights[2]=23
 statuslight=16
 
 clk=19
@@ -43,18 +46,18 @@ GPIO.setup(clk,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(dt,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
 
 GPIO.setup(statuslight,GPIO.OUT)
-GPIO.setup(light1,GPIO.OUT)
-GPIO.setup(light2,GPIO.OUT)
-GPIO.setup(light3,GPIO.OUT)
+GPIO.setup(lights[0],GPIO.OUT)
+GPIO.setup(lights[1],GPIO.OUT)
+GPIO.setup(lights[2],GPIO.OUT)
 
-GPIO.setup(button1,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(button2,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(button3,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(buttons[0],GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(buttons[1],GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(buttons[2],GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 GPIO.output(statuslight,False)
-GPIO.output(light1,False)
-GPIO.output(light2,False)
-GPIO.output(light3,False)
+GPIO.output(lights[0],False)
+GPIO.output(lights[1],False)
+GPIO.output(lights[2],False)
 
 #initialize PWM and cycle to show startup
 pwm = GPIO.PWM(voltmeter,100)
@@ -66,7 +69,7 @@ time.sleep(2)
 #set volume control parameters
 VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
 increment=2 #bigger increment makes the volume knob more sensitive
-initialVolume=40 #initial volume level when casting
+initialVolume=50 #initial volume level when casting
 setVolumeInterval=300 #counter to control how frequently volume change requests are sent to google
 connectiontimeout=10
 
@@ -76,18 +79,22 @@ connectiontimeout=10
 ##########################
 
 def cast_and_monitor(
-    button, light, target="Office Speaker", 
+    button, 
     #source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
     source=audiostream,sourceaudiotype="audio/mp3"):
 
+    #define button order
+    if button==0: fbuttons=[0,1,2]
+    if button==1: fbuttons=[1,0,2]
+    if button==2: fbuttons=[2,0,1]
+    newbutton=button
+
     #Illuminate status indicator
-    GPIO.output(light, True)
-    setVolumeCounter=1
-    priorVolume=initialVolume
+    GPIO.output(lights[button], True)
     print("Attempting Cast...")
     
     #Open connection to chromecast device
-    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[target])
+    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[targets[button]])
     cast = chromecasts [0]
 
     #start worker thread and wait for cast device to be ready
@@ -101,10 +108,6 @@ def cast_and_monitor(
     mc.block_until_active()
     print(mc.status.player_state)
     
-    #start PWM and volume control
-    counter=initialVolume
-    clkLastState=GPIO.input(clk)
-    
     #wait for stream start
     time.sleep(5)
     timeout=5
@@ -112,13 +115,17 @@ def cast_and_monitor(
         time.sleep(1)
         timeout=timeout+1
         print(timeout)
-
     print(mc.status.player_state)
-    print(GPIO.input(button))
-
+ 
+    #start PWM and volume control
+    setVolumeCounter=1
+    priorVolume=initialVolume
+    counter=initialVolume
+    clkLastState=GPIO.input(clk)
     pwm.ChangeDutyCycle(counter*VoltMeterScale)
     
-    while (mc.status.player_state=="PLAYING" or mc.status.player_state=="BUFFERING") and GPIO.input(button)==True:
+    #Loop to control volume and monitor for button presses
+    while (mc.status.player_state=="PLAYING" or mc.status.player_state=="BUFFERING"):
     #while GPIO.input(button)==True:
         clkState = GPIO.input(clk)
         dtState = GPIO.input(dt)
@@ -135,58 +142,69 @@ def cast_and_monitor(
             cast.set_volume(counter/100)
             priorVolume=counter
         clkLastState = clkState
+        if (GPIO.input(buttons[0])==False or GPIO.input(buttons[1])==False or GPIO.input(buttons[2])==False):
+            if GPIO.input(buttons[fbuttons[1]])==False: newbutton=fbuttons[1]
+            if GPIO.input(buttons[fbuttons[2]])==False: newbutton=fbuttons[2]
+            break
         time.sleep(.002)
         #print(mc.status.player_state)
         #print(GPIO.input(button))
 
     #End cast, close connection, and turn off light and volume
     print("Closing Cast Session")
-    GPIO.output(light, False)
+    GPIO.output(lights[button], False)
     pwm.ChangeDutyCycle(0)
     mc.stop()
-    time.sleep(5)
-    print(mc.status.player_state)
+    time.sleep(1)
+    #print(mc.status.player_state)
     #cast.disconnect()
     pychromecast.discovery.stop_discovery(browser)
     time.sleep(1)
 
+    print(button)
+    print(newbutton)
+    if newbutton==button: return
 
-#cast_and_monitor(button1,light1,target1)
+    print("didn't leave")
+    cast_and_monitor(newbutton)
+
+
+#Testing line - runs function without try to surface exceptions in testing
+#cast_and_monitor(button=0)
 
 ##########################
 ### Continuous Loop Monitoring the 3 main buttons and beginning cast when they are pressed
 #########################
 
-#cast_and_monitor(button1,light1)
 
 try:
     GPIO.output(statuslight,True)
     while True:
-        if GPIO.input(button1)==False:
+        if GPIO.input(buttons[0])==False:
             GPIO.output(statuslight, False)
             try:
-                cast_and_monitor(button1,light1,target1)
+                cast_and_monitor(button=0)
             except:
                 print("Function cast_and_monitor failed")
-                GPIO.output(light1, False)
+                GPIO.output(lights[0], False)
                 pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
-        elif GPIO.input(button2)==False:
+        elif GPIO.input(buttons[1])==False:
             GPIO.output(statuslight, False)
             try:
-                cast_and_monitor(button2,light2,target2)
+                cast_and_monitor(button=1)
             except:
                 print("Function cast_and_monitor failed")
-                GPIO.output(light2, False)
+                GPIO.output(lights[1], False)
                 pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
-        elif GPIO.input(button3)==False:
+        elif GPIO.input(buttons[2])==False:
             GPIO.output(statuslight, False)
             try:
-                cast_and_monitor(button3,light3,target3)
+                cast_and_monitor(button=2)
             except:
                 print("Function cast_and_monitor failed")
-                GPIO.output(light3, False)
+                GPIO.output(lights[2], False)
                 pwm.ChangeDutyCycle(0)
             GPIO.output(statuslight, True)
         time.sleep(.05)

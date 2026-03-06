@@ -1,218 +1,293 @@
 import RPi.GPIO as GPIO
-import sys
 import pychromecast
 import time
-import datetime
+import logging
+import os
+import re
+import socket
+from urllib.parse import urlparse, urlunparse
 
-print(datetime.datetime.now())
-print("Beginning Execution of Cast My Vinyl")
+from config import (
+    AUDIO_STREAM, AUDIO_TYPE, TARGETS,
+    BUTTONS, LIGHTS, STATUS_LIGHT, CLK, DT, VOLTMETER,
+    VOLT_METER_SCALE, INCREMENT, INITIAL_VOLUME,
+    VOLUME_SET_INTERVAL, CONNECTION_TIMEOUT,
+    DISCOVERY_RETRIES, DISCOVERY_RETRY_DELAY,
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+log = logging.getLogger(__name__)
+
+log.info("Beginning Execution of Cast My Vinyl")
 
 
 ##########################
-### Define Chromecast Targets
-#########################
-
-#Here, There, Everywhere
-targets=["Downstairs Speakers","Upstairs Speakers","All Devices"]
-#targets[0]="Downstairs Speakers"
-#targets[1]="Upstairs Speakers"
-#targets[2]="All Devices"
-audiostream="http://192.168.86.32:8000/mystream.mp3"
-
-##########################
-### Setup GPIO and naming of buttons and lights
+### IP Self-Check
 ##########################
 
-buttons=[22,27,17]
-#buttons[0]=22
-#buttons[1]=27
-#buttons[2]=17
+def get_local_ip():
+    """
+    Detect the Pi's current local IP by opening a UDP socket toward an
+    external address (no packets are actually sent).
+    Returns the IP string, or None on failure.
+    """
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception as e:
+        log.warning("Could not detect local IP: %s", e)
+        return None
 
-lights=[25,24,23]
-#lights[0]=25
-#lights[1]=24
-#lights[2]=23
-statuslight=16
 
-clk=19
-dt=26
-voltmeter=21
+def sync_stream_ip():
+    """
+    Check whether the IP in AUDIO_STREAM matches the Pi's current IP.
+    If not, rewrite the AUDIO_STREAM line in config.py and return the
+    corrected URL so the running process uses the right address.
+    """
+    current_ip = get_local_ip()
+    if current_ip is None:
+        log.warning("Skipping IP sync — could not determine local IP")
+        return AUDIO_STREAM
+
+    parsed = urlparse(AUDIO_STREAM)
+    config_ip = parsed.hostname
+
+    if current_ip == config_ip:
+        log.info("Stream IP is current (%s)", current_ip)
+        return AUDIO_STREAM
+
+    # Build the corrected URL (preserve port and path)
+    new_netloc = current_ip if parsed.port is None else f"{current_ip}:{parsed.port}"
+    new_url = urlunparse(parsed._replace(netloc=new_netloc))
+
+    # Rewrite the AUDIO_STREAM line in config.py
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.py")
+    try:
+        with open(config_path, "r") as f:
+            content = f.read()
+        new_content = re.sub(
+            r'^(AUDIO_STREAM\s*=\s*["\']).*?(["\'])',
+            lambda m: f"{m.group(1)}{new_url}{m.group(2)}",
+            content,
+            flags=re.MULTILINE,
+        )
+        with open(config_path, "w") as f:
+            f.write(new_content)
+        log.info("Stream IP updated in config.py: %s -> %s", config_ip, current_ip)
+    except Exception as e:
+        log.error("Failed to update config.py with new IP: %s", e)
+
+    return new_url
+
+
+AUDIO_STREAM = sync_stream_ip()
+
+
+##########################
+### GPIO Setup
+##########################
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
-GPIO.setup(voltmeter,GPIO.OUT)
-GPIO.setup(clk,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
-GPIO.setup(dt,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
+# Rotary encoder inputs
+GPIO.setup(CLK, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(DT,  GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
-GPIO.setup(statuslight,GPIO.OUT)
-GPIO.setup(lights[0],GPIO.OUT)
-GPIO.setup(lights[1],GPIO.OUT)
-GPIO.setup(lights[2],GPIO.OUT)
+# Status and button indicator outputs
+GPIO.setup(STATUS_LIGHT, GPIO.OUT)
+GPIO.output(STATUS_LIGHT, False)
 
-GPIO.setup(buttons[0],GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(buttons[1],GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(buttons[2],GPIO.IN, pull_up_down=GPIO.PUD_UP)
+for pin in LIGHTS:
+    GPIO.setup(pin, GPIO.OUT)
+    GPIO.output(pin, False)
 
-GPIO.output(statuslight,False)
-GPIO.output(lights[0],False)
-GPIO.output(lights[1],False)
-GPIO.output(lights[2],False)
+# Button inputs
+for pin in BUTTONS:
+    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-#initialize PWM and cycle to show startup
-pwm = GPIO.PWM(voltmeter,100)
+# Voltmeter needle (PWM output)
+GPIO.setup(VOLTMETER, GPIO.OUT)
+pwm = GPIO.PWM(VOLTMETER, 100)
 pwm.start(100)
 time.sleep(2)
 pwm.ChangeDutyCycle(0)
 time.sleep(2)
 
-#set volume control parameters
-VoltMeterScale=1 #adjustment factor for output voltage vs. max of voltmeter
-increment=2 #bigger increment makes the volume knob more sensitive
-initialVolume=50 #initial volume level when casting
-setVolumeInterval=300 #counter to control how frequently volume change requests are sent to google
-connectiontimeout=10
+
+##########################
+### Helper Functions
+##########################
+
+def signal_error(button):
+    """Flash the button's indicator light to signal a connection error."""
+    for _ in range(5):
+        GPIO.output(LIGHTS[button], True)
+        time.sleep(0.15)
+        GPIO.output(LIGHTS[button], False)
+        time.sleep(0.15)
+
+
+def discover_chromecast(button):
+    """
+    Attempt to discover the target Chromecast, retrying on failure.
+    Returns (cast, browser) on success, or (None, None) after all retries fail.
+    """
+    for attempt in range(1, DISCOVERY_RETRIES + 1):
+        log.info("Discovery attempt %d/%d for '%s'", attempt, DISCOVERY_RETRIES, TARGETS[button])
+        chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[TARGETS[button]])
+        if chromecasts:
+            return chromecasts[0], browser
+        pychromecast.discovery.stop_discovery(browser)
+        if attempt < DISCOVERY_RETRIES:
+            log.warning("Device not found, retrying in %ds...", DISCOVERY_RETRY_DELAY)
+            time.sleep(DISCOVERY_RETRY_DELAY)
+    log.error("Could not find '%s' after %d attempts", TARGETS[button], DISCOVERY_RETRIES)
+    return None, None
 
 
 ##########################
-### Function to Cast to a chromecast target and monitor until playback stops or the button is pressed again
+### Cast and Monitor
 ##########################
 
-def cast_and_monitor(
-    button, 
-    #source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",sourceaudiotype="vide/mp4"):
-    source=audiostream,sourceaudiotype="audio/mp3"):
+def cast_and_monitor(start_button):
+    """
+    Cast audio to the target Chromecast and monitor playback.
+    Handles button-switching iteratively to avoid unbounded recursion.
+    """
+    button = start_button
 
-    #define button order
-    if button==0: fbuttons=[0,1,2]
-    if button==1: fbuttons=[1,0,2]
-    if button==2: fbuttons=[2,0,1]
-    newbutton=button
+    while True:
+        GPIO.output(LIGHTS[button], True)
+        log.info("Attempting cast to '%s'", TARGETS[button])
 
-    #Illuminate status indicator
-    GPIO.output(lights[button], True)
-    print("Attempting Cast...")
-    
-    #Open connection to chromecast device
-    chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[targets[button]])
-    cast = chromecasts [0]
+        cast, browser = discover_chromecast(button)
+        if cast is None:
+            signal_error(button)
+            GPIO.output(LIGHTS[button], False)
+            pwm.ChangeDutyCycle(0)
+            return
 
-    #start worker thread and wait for cast device to be ready
-    cast.wait()
-    print("Casting to "+cast.device.friendly_name)
+        mc = None
+        new_button = button
+        try:
+            cast.wait()
+            log.info("Connected to '%s'", cast.device.friendly_name)
 
-    #start media
-    mc = cast.media_controller
-    cast.set_volume(initialVolume/100)
-    mc.play_media(source,sourceaudiotype)
-    mc.block_until_active()
-    print(mc.status.player_state)
-    
-    #wait for stream start
-    time.sleep(5)
-    timeout=5
-    while mc.status.player_state!="PLAYING" and timeout<connectiontimeout:
-        time.sleep(1)
-        timeout=timeout+1
-        print(timeout)
-    print(mc.status.player_state)
- 
-    #start PWM and volume control
-    setVolumeCounter=1
-    priorVolume=initialVolume
-    counter=initialVolume
-    clkLastState=GPIO.input(clk)
-    pwm.ChangeDutyCycle(counter*VoltMeterScale)
-    
-    #Loop to control volume and monitor for button presses
-    while (mc.status.player_state=="PLAYING" or mc.status.player_state=="BUFFERING"):
-    #while GPIO.input(button)==True:
-        clkState = GPIO.input(clk)
-        dtState = GPIO.input(dt)
-        if clkState != clkLastState:
-            if dtState == clkState and counter < 100:
-                counter += increment
-            elif counter > 0:
-                counter -= increment
-            #print(counter)
-            pwm.ChangeDutyCycle(counter*VoltMeterScale)
-        setVolumeCounter=(setVolumeCounter+1)%setVolumeInterval
-        if setVolumeCounter == 0 and priorVolume!=counter:
-            #print("Set Volume")
-            cast.set_volume(counter/100)
-            priorVolume=counter
-        clkLastState = clkState
-        if (GPIO.input(buttons[0])==False or GPIO.input(buttons[1])==False or GPIO.input(buttons[2])==False):
-            if GPIO.input(buttons[fbuttons[1]])==False: newbutton=fbuttons[1]
-            if GPIO.input(buttons[fbuttons[2]])==False: newbutton=fbuttons[2]
-            break
-        time.sleep(.002)
-        #print(mc.status.player_state)
-        #print(GPIO.input(button))
+            mc = cast.media_controller
+            cast.set_volume(INITIAL_VOLUME / 100)
+            mc.play_media(AUDIO_STREAM, AUDIO_TYPE)
+            mc.block_until_active()
+            log.info("Initial player state: %s", mc.status.player_state)
 
-    #End cast, close connection, and turn off light and volume
-    print("Closing Cast Session")
-    GPIO.output(lights[button], False)
-    pwm.ChangeDutyCycle(0)
-    mc.stop()
-    time.sleep(1)
-    #print(mc.status.player_state)
-    #cast.disconnect()
-    pychromecast.discovery.stop_discovery(browser)
-    time.sleep(1)
+            # Wait for PLAYING state
+            deadline = time.time() + CONNECTION_TIMEOUT
+            while mc.status.player_state != "PLAYING" and time.time() < deadline:
+                time.sleep(1)
 
-    print(button)
-    print(newbutton)
-    if newbutton==button: return
+            if mc.status.player_state not in ("PLAYING", "BUFFERING"):
+                log.error("Stream never started. Final state: %s", mc.status.player_state)
+                signal_error(button)
+                return
 
-    print("didn't leave")
-    cast_and_monitor(newbutton)
+            log.info("Streaming: %s", mc.status.player_state)
 
+            # Volume control state
+            counter = INITIAL_VOLUME
+            prior_volume = INITIAL_VOLUME
+            clk_last_state = GPIO.input(CLK)
+            pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
+            last_volume_set = time.time()
 
-#Testing line - runs function without try to surface exceptions in testing
-#cast_and_monitor(button=0)
+            # Button priority order: pressed button first, then others in order
+            other_buttons = [i for i in range(len(BUTTONS)) if i != button]
+            priority = [button] + other_buttons
+
+            # Main playback loop
+            while mc.status.player_state in ("PLAYING", "BUFFERING"):
+                # Rotary encoder volume tracking
+                clk_state = GPIO.input(CLK)
+                dt_state  = GPIO.input(DT)
+                if clk_state != clk_last_state:
+                    if dt_state == clk_state and counter < 100:
+                        counter += INCREMENT
+                    elif counter > 0:
+                        counter -= INCREMENT
+                    pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
+                clk_last_state = clk_state
+
+                # Time-based volume updates to Chromecast
+                now = time.time()
+                if now - last_volume_set >= VOLUME_SET_INTERVAL and prior_volume != counter:
+                    cast.set_volume(counter / 100)
+                    prior_volume = counter
+                    last_volume_set = now
+
+                # Button press detection
+                pressed = [i for i in range(len(BUTTONS)) if GPIO.input(BUTTONS[i]) == False]
+                if pressed:
+                    new_button = next((b for b in priority if b in pressed), pressed[0])
+                    break
+
+                time.sleep(0.002)
+
+        except Exception as e:
+            log.error("Error during cast session: %s", e, exc_info=True)
+            signal_error(button)
+
+        finally:
+            log.info("Closing cast session for '%s'", TARGETS[button])
+            GPIO.output(LIGHTS[button], False)
+            pwm.ChangeDutyCycle(0)
+            if mc is not None:
+                try:
+                    mc.stop()
+                except Exception as e:
+                    log.warning("Error stopping media controller: %s", e)
+            time.sleep(1)
+            cast.disconnect()
+            pychromecast.discovery.stop_discovery(browser)
+            time.sleep(1)
+
+        # If the same button was pressed (or no switch), exit
+        if new_button == button:
+            return
+
+        # Switch to the new target iteratively (no recursion)
+        log.info("Switching from button %d to button %d", button, new_button)
+        button = new_button
+
 
 ##########################
-### Continuous Loop Monitoring the 3 main buttons and beginning cast when they are pressed
-#########################
-
+### Main Loop
+##########################
 
 try:
-    GPIO.output(statuslight,True)
+    GPIO.output(STATUS_LIGHT, True)
     while True:
-        if GPIO.input(buttons[0])==False:
-            GPIO.output(statuslight, False)
-            try:
-                cast_and_monitor(button=0)
-            except:
-                print("Function cast_and_monitor failed")
-                GPIO.output(lights[0], False)
-                pwm.ChangeDutyCycle(0)
-            GPIO.output(statuslight, True)
-        elif GPIO.input(buttons[1])==False:
-            GPIO.output(statuslight, False)
-            try:
-                cast_and_monitor(button=1)
-            except:
-                print("Function cast_and_monitor failed")
-                GPIO.output(lights[1], False)
-                pwm.ChangeDutyCycle(0)
-            GPIO.output(statuslight, True)
-        elif GPIO.input(buttons[2])==False:
-            GPIO.output(statuslight, False)
-            try:
-                cast_and_monitor(button=2)
-            except:
-                print("Function cast_and_monitor failed")
-                GPIO.output(lights[2], False)
-                pwm.ChangeDutyCycle(0)
-            GPIO.output(statuslight, True)
-        time.sleep(.05)
+        for i, btn in enumerate(BUTTONS):
+            if GPIO.input(btn) == False:
+                GPIO.output(STATUS_LIGHT, False)
+                try:
+                    cast_and_monitor(i)
+                except Exception as e:
+                    log.error("cast_and_monitor(%d) failed: %s", i, e, exc_info=True)
+                    GPIO.output(LIGHTS[i], False)
+                    pwm.ChangeDutyCycle(0)
+                GPIO.output(STATUS_LIGHT, True)
+                break
+        time.sleep(0.05)
 
-except:
-    print("there was an exception")
+except Exception as e:
+    log.error("Fatal error in main loop: %s", e, exc_info=True)
     pwm.ChangeDutyCycle(0)
     GPIO.cleanup()
 
 GPIO.cleanup()
-

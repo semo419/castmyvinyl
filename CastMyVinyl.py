@@ -216,16 +216,20 @@ def cast_and_monitor(start_button):
                 clk_state = GPIO.input(CLK)
                 dt_state  = GPIO.input(DT)
                 if clk_state != clk_last_state:
+                    old_counter = counter
                     if dt_state == clk_state and counter < 100:
                         counter += INCREMENT
                     elif counter > 0:
                         counter -= INCREMENT
+                    if counter != old_counter:
+                        log.info("Encoder: clk=%s dt=%s counter %d->%d", clk_state, dt_state, old_counter, counter)
                     pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
                 clk_last_state = clk_state
 
                 # Time-based volume updates to Chromecast
                 now = time.time()
                 if now - last_volume_set >= VOLUME_SET_INTERVAL and prior_volume != counter:
+                    log.info("Setting volume: %d -> %d", prior_volume, counter)
                     cast.set_volume(counter / 100)
                     prior_volume = counter
                     last_volume_set = now

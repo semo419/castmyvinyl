@@ -13,10 +13,10 @@ print("Beginning Execution of Cast My Vinyl")
 #########################
 
 #Here, There, Everywhere
-targets=["Downstairs Speakers","Upstairs Speakers","All Devices"]
-#targets[0]="Downstairs Speakers"
-#targets[1]="Upstairs Speakers"
-#targets[2]="All Devices"
+targets=["Vinyl Local","Vinyl Remote","Vinyl All"]
+#targets[0]="Vinyl Local"
+#targets[1]="Vinyl Remote"
+#targets[2]="Vinyl All"
 audiostream="http://192.168.86.32:8000/mystream.mp3"
 
 ##########################
@@ -35,7 +35,7 @@ lights=[25,24,23]
 statuslight=16
 
 clk=19
-dt=26
+dt=12
 voltmeter=21
 
 GPIO.setmode(GPIO.BCM)

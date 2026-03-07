@@ -4,8 +4,30 @@ import pychromecast
 import time
 import datetime
 
+import socket
+import re
+
 print(datetime.datetime.now())
 print("Beginning Execution of Cast My Vinyl")
+
+
+##########################
+### Detect local IP and update stream URL
+##########################
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return None
+
+_detected_ip = get_local_ip()
+if _detected_ip:
+    print("Detected local IP: " + _detected_ip)
 
 
 ##########################
@@ -13,11 +35,16 @@ print("Beginning Execution of Cast My Vinyl")
 #########################
 
 #Here, There, Everywhere
-targets=["Downstairs Speakers","Upstairs Speakers","All Devices"]
+targets=["Vinyl Local","Vinyl Remote","Vinyl All"]
 #targets[0]="Downstairs Speakers"
 #targets[1]="Upstairs Speakers"
 #targets[2]="All Devices"
-audiostream="http://192.168.86.32:8000/mystream.mp3"
+_base_stream="http://192.168.86.32:8000/mystream.mp3"
+if _detected_ip:
+    audiostream = "http://" + _detected_ip + ":8000/mystream.mp3"
+else:
+    audiostream = _base_stream
+print("Stream URL: " + audiostream)
 
 ##########################
 ### Setup GPIO and naming of buttons and lights

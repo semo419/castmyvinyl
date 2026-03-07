@@ -217,10 +217,11 @@ def cast_and_monitor(start_button):
                 # Rotary encoder volume tracking
                 clk_state = GPIO.input(CLK)
                 dt_state  = GPIO.input(DT)
-                if clk_state != clk_last_state and clk_state == 1 and (time.time() - last_encoder_time) > ENCODER_DEBOUNCE:
-                    if dt_state != clk_state and counter < 100:
+                if clk_state != clk_last_state and (time.time() - last_encoder_time) > ENCODER_DEBOUNCE:
+                    clockwise = (clk_state == 1 and dt_state == 0) or (clk_state == 0 and dt_state == 1)
+                    if clockwise and counter < 100:
                         counter += INCREMENT
-                    elif dt_state == clk_state and counter > 0:
+                    elif not clockwise and counter > 0:
                         counter -= INCREMENT
                     pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
                     last_encoder_time = time.time()

@@ -4,7 +4,7 @@
 # =============================================================================
 
 # Audio stream URL (Raspberry Pi local stream server)
-AUDIO_STREAM = "http://192.168.86.32:8000/mystream.mp3"
+AUDIO_STREAM = "http://192.168.68.52:8000/mystream.mp3"
 AUDIO_TYPE = "audio/mp3"
 
 # Chromecast target friendly names — index must match BUTTONS and LIGHTS below

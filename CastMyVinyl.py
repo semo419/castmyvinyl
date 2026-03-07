@@ -154,6 +154,30 @@ def discover_chromecast(button):
 
 
 ##########################
+### Encoder Interrupt
+##########################
+
+_encoder_counter = 50
+_encoder_last_clk = 0
+
+def encoder_callback(channel):
+    global _encoder_counter, _encoder_last_clk
+    clk_state = GPIO.input(CLK)
+    dt_state  = GPIO.input(DT)
+    if clk_state != _encoder_last_clk:
+        old_val = _encoder_counter
+        if dt_state == clk_state and _encoder_counter < 100:
+            _encoder_counter += INCREMENT
+        elif _encoder_counter > 0:
+            _encoder_counter -= INCREMENT
+        if _encoder_counter != old_val:
+            log.info("Encoder: clk=%s dt=%s counter %d->%d", clk_state, dt_state, old_val, _encoder_counter)
+    _encoder_last_clk = clk_state
+
+GPIO.add_event_detect(CLK, GPIO.BOTH, callback=encoder_callback, bouncetime=1)
+
+
+##########################
 ### Cast and Monitor
 ##########################
 
@@ -199,10 +223,11 @@ def cast_and_monitor(start_button):
 
             log.info("Streaming: %s", mc.status.player_state)
 
-            # Volume control state
+            # Volume control state — counter managed by interrupt callback
+            global _encoder_counter
+            _encoder_counter = INITIAL_VOLUME
             counter = INITIAL_VOLUME
             prior_volume = INITIAL_VOLUME
-            clk_last_state = GPIO.input(CLK)
             pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
             last_volume_set = time.time()
 
@@ -212,19 +237,10 @@ def cast_and_monitor(start_button):
 
             # Main playback loop
             while mc.status.player_state in ("PLAYING", "BUFFERING"):
-                # Rotary encoder volume tracking
-                clk_state = GPIO.input(CLK)
-                dt_state  = GPIO.input(DT)
-                if clk_state != clk_last_state:
-                    old_counter = counter
-                    if dt_state == clk_state and counter < 100:
-                        counter += INCREMENT
-                    elif counter > 0:
-                        counter -= INCREMENT
-                    if counter != old_counter:
-                        log.info("Encoder: clk=%s dt=%s counter %d->%d", clk_state, dt_state, old_counter, counter)
+                # Read counter updated by interrupt callback
+                counter = _encoder_counter
+                if counter != prior_volume:
                     pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
-                clk_last_state = clk_state
 
                 # Time-based volume updates to Chromecast
                 now = time.time()

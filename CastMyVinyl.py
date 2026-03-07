@@ -13,11 +13,11 @@ print("Beginning Execution of Cast My Vinyl")
 #########################
 
 #Here, There, Everywhere
-targets=["Downstairs Speakers","Upstairs Speakers","All Devices"]
+targets=["Vinyl Local","Vinyl Remote","Vinyl All"]
 #targets[0]="Downstairs Speakers"
 #targets[1]="Upstairs Speakers"
 #targets[2]="All Devices"
-audiostream="http://192.168.86.32:8000/mystream.mp3"
+audiostream="http://192.168.68.52:8000/mystream.mp3"
 
 ##########################
 ### Setup GPIO and naming of buttons and lights

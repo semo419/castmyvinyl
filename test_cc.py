@@ -33,4 +33,4 @@ while mc.status.player_state == "PLAYING":
 
 print(mc.status.player_state)
 
-pychromecast.discovery.stop_discovery(browser)
+browser.stop_discovery()

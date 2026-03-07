@@ -8,7 +8,7 @@ AUDIO_STREAM = "http://192.168.86.32:8000/mystream.mp3"
 AUDIO_TYPE = "audio/mp3"
 
 # Chromecast target friendly names — index must match BUTTONS and LIGHTS below
-TARGETS = ["Downstairs Speakers", "Upstairs Speakers", "All Devices"]
+TARGETS = ["Vinyl Local", "Vinyl Remote", "Vinyl All"]
 
 # GPIO pin mapping (BCM numbering) — DO NOT CHANGE, pins are hardwired
 BUTTONS      = [22, 27, 17]   # tactile push buttons (active low)

@@ -145,7 +145,7 @@ def discover_chromecast(button):
         chromecasts, browser = pychromecast.get_listed_chromecasts(friendly_names=[TARGETS[button]])
         if chromecasts:
             return chromecasts[0], browser
-        pychromecast.discovery.stop_discovery(browser)
+        browser.stop_discovery()
         if attempt < DISCOVERY_RETRIES:
             log.warning("Device not found, retrying in %ds...", DISCOVERY_RETRY_DELAY)
             time.sleep(DISCOVERY_RETRY_DELAY)
@@ -253,7 +253,7 @@ def cast_and_monitor(start_button):
                     log.warning("Error stopping media controller: %s", e)
             time.sleep(1)
             cast.disconnect()
-            pychromecast.discovery.stop_discovery(browser)
+            browser.stop_discovery()
             time.sleep(1)
 
         # If the same button was pressed (or no switch), exit

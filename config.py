@@ -19,10 +19,11 @@ DT           = 26             # rotary encoder data
 VOLTMETER    = 21             # PWM-driven analog voltmeter needle
 
 # Volume control
-VOLT_METER_SCALE   = 1     # output duty cycle multiplier vs. counter value
-INCREMENT          = 2     # encoder steps per volume unit
-INITIAL_VOLUME     = 50   # volume (0–100) applied when casting starts
-VOLUME_SET_INTERVAL = 0.3  # seconds between volume updates sent to Chromecast
+VOLT_METER_SCALE    = 1     # output duty cycle multiplier vs. counter value
+INCREMENT           = 2     # encoder steps per volume unit
+INITIAL_VOLUME      = 50    # volume (0–100) applied when casting starts
+VOLUME_SET_INTERVAL = 0.3   # seconds between volume updates sent to Chromecast
+ENCODER_DEBOUNCE    = 0.005 # seconds to ignore further encoder transitions after a change (reduces bounce noise)
 
 # Connectivity
 CONNECTION_TIMEOUT    = 10  # seconds to wait for PLAYING state before giving up

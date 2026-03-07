@@ -13,6 +13,7 @@ from config import (
     VOLT_METER_SCALE, INCREMENT, INITIAL_VOLUME,
     VOLUME_SET_INTERVAL, CONNECTION_TIMEOUT,
     DISCOVERY_RETRIES, DISCOVERY_RETRY_DELAY,
+    ENCODER_DEBOUNCE,
 )
 
 logging.basicConfig(
@@ -205,6 +206,7 @@ def cast_and_monitor(start_button):
             clk_last_state = GPIO.input(CLK)
             pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
             last_volume_set = time.time()
+            last_encoder_time = 0.0
 
             # Button priority order: pressed button first, then others in order
             other_buttons = [i for i in range(len(BUTTONS)) if i != button]
@@ -215,12 +217,13 @@ def cast_and_monitor(start_button):
                 # Rotary encoder volume tracking
                 clk_state = GPIO.input(CLK)
                 dt_state  = GPIO.input(DT)
-                if clk_state != clk_last_state:
+                if clk_state != clk_last_state and (time.time() - last_encoder_time) > ENCODER_DEBOUNCE:
                     if dt_state == clk_state and counter < 100:
                         counter += INCREMENT
                     elif counter > 0:
                         counter -= INCREMENT
                     pwm.ChangeDutyCycle(counter * VOLT_METER_SCALE)
+                    last_encoder_time = time.time()
                 clk_last_state = clk_state
 
                 # Time-based volume updates to Chromecast

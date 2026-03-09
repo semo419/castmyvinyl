@@ -10,7 +10,7 @@ AUDIO_TYPE = "audio/mp3"
 # Chromecast target friendly names — index must match BUTTONS and LIGHTS below
 TARGETS = ["Vinyl Local", "Vinyl Remote", "Vinyl All"]
 
-# GPIO pin mapping (BCM numbering) — DO NOT CHANGE, pins are hardwired
+# GPIO pin mapping (BCM numbering) — update if wiring changes
 BUTTONS      = [22, 27, 17]   # tactile push buttons (active low)
 LIGHTS       = [25, 24, 23]   # indicator LEDs per button
 STATUS_LIGHT = 16             # global status LED
@@ -23,7 +23,6 @@ VOLT_METER_SCALE    = 1     # output duty cycle multiplier vs. counter value
 INCREMENT           = 2     # encoder steps per volume unit
 INITIAL_VOLUME      = 50    # volume (0–100) applied when casting starts
 VOLUME_SET_INTERVAL = 0.3   # seconds between volume updates sent to Chromecast
-ENCODER_DEBOUNCE    = 0.005 # seconds to ignore further encoder transitions after a change (reduces bounce noise)
 
 # Connectivity
 CONNECTION_TIMEOUT    = 10  # seconds to wait for PLAYING state before giving up

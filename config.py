@@ -15,7 +15,7 @@ BUTTONS      = [22, 27, 17]   # tactile push buttons (active low)
 LIGHTS       = [25, 24, 23]   # indicator LEDs per button
 STATUS_LIGHT = 16             # global status LED
 CLK          = 19             # rotary encoder clock
-DT           = 26             # rotary encoder data
+DT           = 12             # rotary encoder data
 VOLTMETER    = 21             # PWM-driven analog voltmeter needle
 
 # Volume control

@@ -165,13 +165,10 @@ def encoder_callback(channel):
     clk_state = GPIO.input(CLK)
     dt_state  = GPIO.input(DT)
     if clk_state != _encoder_last_clk:
-        old_val = _encoder_counter
         if dt_state == clk_state and _encoder_counter < 100:
             _encoder_counter += INCREMENT
         elif _encoder_counter > 0:
             _encoder_counter -= INCREMENT
-        if _encoder_counter != old_val:
-            log.info("Encoder: clk=%s dt=%s counter %d->%d", clk_state, dt_state, old_val, _encoder_counter)
     _encoder_last_clk = clk_state
 
 GPIO.add_event_detect(CLK, GPIO.BOTH, callback=encoder_callback, bouncetime=1)
